@@ -1,5 +1,5 @@
 ---
-name: product-led-growth
+name: plg
 description:
   Build products that sell themselves. Use when designing onboarding, pricing,
   conversion flows, viral mechanics, or retention strategies. Triggers on tasks
