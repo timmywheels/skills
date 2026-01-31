@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "organization": "Growth Engineering",
+  "date": "January 2026",
+  "abstract": "Product-Led Growth patterns for building self-serve products that drive acquisition, conversion, and expansion through the product itself. Covers activation, onboarding, virality, conversion, expansion, and retention strategies.",
+  "references": [
+    "https://www.productled.org/foundations/what-is-product-led-growth",
+    "https://openviewpartners.com/product-led-growth/",
+    "https://www.reforge.com/blog/growth-loops"
+  ]
+}

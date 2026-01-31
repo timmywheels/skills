@@ -1,8 +1,14 @@
-# Fastify Best Practices Skill
+---
+name: fastify-best-practices
+description: Fastify framework best practices with deep focus on plugin architecture, encapsulation, and composition patterns. Use when building, reviewing, or refactoring Fastify applications. Covers plugin registration, fastify-plugin usage, decorators, hooks, project structure, and common anti-patterns.
+metadata:
+  author: timmywheels
+  version: "1.0"
+---
 
-<skill-context>
-This skill provides authoritative guidance on Fastify best practices with a primary focus on the plugin architecture. Use this when building, reviewing, or refactoring Fastify applications. The plugin system is the core architectural pattern in Fastify—understanding it deeply is essential for building maintainable, scalable Node.js backends.
-</skill-context>
+# Fastify Best Practices
+
+This skill provides authoritative guidance on Fastify best practices with a primary focus on the plugin architecture. The plugin system is the core architectural pattern in Fastify—understanding it deeply is essential for building maintainable, scalable Node.js backends.
 
 ## The Plugin Architecture: Fastify's Core Design Pattern
 
@@ -27,6 +33,7 @@ Fastify is built around a **plugin-based architecture**. Everything in Fastify i
 ```
 
 Plugins provide:
+
 - **Encapsulation**: Each plugin gets its own isolated context
 - **Composition**: Build complex apps from simple, testable pieces
 - **Reusability**: Share plugins across projects via npm
@@ -52,23 +59,25 @@ Plugins provide:
 ### Correct: Encapsulated Plugin
 
 ```typescript
-import { FastifyPluginAsync } from 'fastify'
-import fp from 'fastify-plugin'
+import { FastifyPluginAsync } from "fastify";
+import fp from "fastify-plugin";
 
 // This plugin's decorator is ONLY visible to itself and its children
 const usersPlugin: FastifyPluginAsync = async (fastify) => {
   // This decorator is encapsulated—parent and sibling plugins cannot see it
-  fastify.decorate('userService', {
-    findById: async (id: string) => { /* ... */ }
-  })
+  fastify.decorate("userService", {
+    findById: async (id: string) => {
+      /* ... */
+    },
+  });
 
-  fastify.get('/users/:id', async (request, reply) => {
-    const user = await fastify.userService.findById(request.params.id)
-    return user
-  })
-}
+  fastify.get("/users/:id", async (request, reply) => {
+    const user = await fastify.userService.findById(request.params.id);
+    return user;
+  });
+};
 
-export default usersPlugin
+export default usersPlugin;
 ```
 
 ### Breaking Encapsulation with fastify-plugin
@@ -76,35 +85,35 @@ export default usersPlugin
 Use `fastify-plugin` (fp) **only when you intentionally want to expose** decorators, hooks, or other additions to the parent scope:
 
 ```typescript
-import fp from 'fastify-plugin'
+import fp from "fastify-plugin";
 
 // This decorator WILL be visible to the parent and all siblings
 const databasePlugin: FastifyPluginAsync = async (fastify) => {
-  const db = await connectToDatabase()
+  const db = await connectToDatabase();
 
-  fastify.decorate('db', db)
+  fastify.decorate("db", db);
 
-  fastify.addHook('onClose', async () => {
-    await db.close()
-  })
-}
+  fastify.addHook("onClose", async () => {
+    await db.close();
+  });
+};
 
 // fp() breaks encapsulation—the 'db' decorator bubbles up
 export default fp(databasePlugin, {
-  name: 'database-plugin',
+  name: "database-plugin",
   // Optionally specify dependencies
-  dependencies: []
-})
+  dependencies: [],
+});
 ```
 
 ### When to Use `fastify-plugin` (fp)
 
-| Use `fp()` | Don't use `fp()` |
-|------------|------------------|
-| Database connections | Feature modules (users, orders) |
-| Authentication decorators | Route groups |
-| Shared utilities | Domain-specific logic |
-| Config that all plugins need | Anything feature-specific |
+| Use `fp()`                   | Don't use `fp()`                |
+| ---------------------------- | ------------------------------- |
+| Database connections         | Feature modules (users, orders) |
+| Authentication decorators    | Route groups                    |
+| Shared utilities             | Domain-specific logic           |
+| Config that all plugins need | Anything feature-specific       |
 
 **Rule of thumb**: If you're building infrastructure that the whole app needs, use `fp()`. If you're building a feature, don't.
 
@@ -117,14 +126,17 @@ export default fp(databasePlugin, {
 Always use async plugins—they're cleaner and better supported:
 
 ```typescript
-import { FastifyPluginAsync } from 'fastify'
+import { FastifyPluginAsync } from "fastify";
 
-const myPlugin: FastifyPluginAsync<MyPluginOptions> = async (fastify, options) => {
+const myPlugin: FastifyPluginAsync<MyPluginOptions> = async (
+  fastify,
+  options,
+) => {
   // Your plugin code here
   // No need for done() callback—just use async/await
-}
+};
 
-export default myPlugin
+export default myPlugin;
 ```
 
 ### Registration Order Matters
@@ -133,35 +145,41 @@ Plugins are loaded in registration order, but Fastify handles async resolution:
 
 ```typescript
 // app.ts
-import Fastify from 'fastify'
+import Fastify from "fastify";
 
-const app = Fastify({ logger: true })
+const app = Fastify({ logger: true });
 
 // 1. Infrastructure plugins first (these use fp() to share decorators)
-await app.register(import('./plugins/config'))
-await app.register(import('./plugins/database'))
-await app.register(import('./plugins/auth'))
+await app.register(import("./plugins/config"));
+await app.register(import("./plugins/database"));
+await app.register(import("./plugins/auth"));
 
 // 2. Feature plugins second (these are encapsulated)
-await app.register(import('./features/users'), { prefix: '/api/users' })
-await app.register(import('./features/orders'), { prefix: '/api/orders' })
+await app.register(import("./features/users"), { prefix: "/api/users" });
+await app.register(import("./features/orders"), { prefix: "/api/orders" });
 
 // 3. Start the server
-await app.listen({ port: 3000 })
+await app.listen({ port: 3000 });
 ```
 
 ### Using Prefixes for Route Namespacing
 
 ```typescript
 // Prefix all routes in this plugin with /api/v1/users
-await app.register(import('./features/users'), { prefix: '/api/v1/users' })
+await app.register(import("./features/users"), { prefix: "/api/v1/users" });
 
 // Inside the plugin, routes are relative to the prefix
 const usersPlugin: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async () => { /* GET /api/v1/users */ })
-  fastify.get('/:id', async () => { /* GET /api/v1/users/:id */ })
-  fastify.post('/', async () => { /* POST /api/v1/users */ })
-}
+  fastify.get("/", async () => {
+    /* GET /api/v1/users */
+  });
+  fastify.get("/:id", async () => {
+    /* GET /api/v1/users/:id */
+  });
+  fastify.post("/", async () => {
+    /* POST /api/v1/users */
+  });
+};
 ```
 
 ---
@@ -174,15 +192,17 @@ Decorators are how you add properties/methods to Fastify instances, requests, or
 
 ```typescript
 // Add to the Fastify instance
-fastify.decorate('myUtil', () => { /* ... */ })
+fastify.decorate("myUtil", () => {
+  /* ... */
+});
 
 // Add to every request object
-fastify.decorateRequest('user', null) // null is the initial value
+fastify.decorateRequest("user", null); // null is the initial value
 
 // Add to every reply object
-fastify.decorateReply('sendSuccess', function(data) {
-  return this.send({ success: true, data })
-})
+fastify.decorateReply("sendSuccess", function (data) {
+  return this.send({ success: true, data });
+});
 ```
 
 ### Critical: Declare Decorator Shapes for Performance
@@ -191,36 +211,36 @@ Fastify optimizes object shapes. **Always provide the initial type structure**:
 
 ```typescript
 // WRONG: Don't do this (breaks V8 optimization)
-fastify.decorateRequest('user') // undefined shape
+fastify.decorateRequest("user"); // undefined shape
 
 // CORRECT: Provide initial value matching the shape
-fastify.decorateRequest('user', null) // Will be User | null
+fastify.decorateRequest("user", null); // Will be User | null
 
 // For objects, provide a getter if the initial value is expensive
-fastify.decorateRequest('parsedBody', {
+fastify.decorateRequest("parsedBody", {
   getter() {
     // Lazy initialization
-    return JSON.parse(this.body)
-  }
-})
+    return JSON.parse(this.body);
+  },
+});
 ```
 
 ### TypeScript: Augmenting Fastify Types
 
 ```typescript
 // types.d.ts or at the top of your plugin
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyInstance {
-    db: DatabaseClient
-    config: AppConfig
+    db: DatabaseClient;
+    config: AppConfig;
   }
 
   interface FastifyRequest {
-    user: User | null
+    user: User | null;
   }
 
   interface FastifyReply {
-    sendSuccess: (data: unknown) => void
+    sendSuccess: (data: unknown) => void;
   }
 }
 ```
@@ -234,15 +254,19 @@ Hooks registered inside a plugin respect encapsulation:
 ```typescript
 const adminPlugin: FastifyPluginAsync = async (fastify) => {
   // This hook ONLY runs for routes in this plugin and its children
-  fastify.addHook('onRequest', async (request, reply) => {
+  fastify.addHook("onRequest", async (request, reply) => {
     if (!request.user?.isAdmin) {
-      reply.code(403).send({ error: 'Admin access required' })
+      reply.code(403).send({ error: "Admin access required" });
     }
-  })
+  });
 
-  fastify.get('/admin/dashboard', async () => { /* ... */ })
-  fastify.get('/admin/users', async () => { /* ... */ })
-}
+  fastify.get("/admin/dashboard", async () => {
+    /* ... */
+  });
+  fastify.get("/admin/users", async () => {
+    /* ... */
+  });
+};
 ```
 
 ### Hook Execution Order
@@ -263,17 +287,17 @@ onReady → onListen → onClose
 Declare dependencies to ensure proper loading order:
 
 ```typescript
-import fp from 'fastify-plugin'
+import fp from "fastify-plugin";
 
 const ordersPlugin: FastifyPluginAsync = async (fastify) => {
   // Safe to use fastify.db here—dependency guarantees it exists
-  const orders = await fastify.db.query('SELECT * FROM orders')
-}
+  const orders = await fastify.db.query("SELECT * FROM orders");
+};
 
 export default fp(ordersPlugin, {
-  name: 'orders-plugin',
-  dependencies: ['database-plugin', 'auth-plugin']
-})
+  name: "orders-plugin",
+  dependencies: ["database-plugin", "auth-plugin"],
+});
 ```
 
 ---
@@ -305,22 +329,22 @@ src/
 
 ```typescript
 // features/users/index.ts
-import { FastifyPluginAsync } from 'fastify'
-import { userRoutes } from './routes'
-import { UserService } from './service'
+import { FastifyPluginAsync } from "fastify";
+import { userRoutes } from "./routes";
+import { UserService } from "./service";
 
 const usersPlugin: FastifyPluginAsync = async (fastify) => {
   // Create service with injected dependencies
-  const userService = new UserService(fastify.db)
+  const userService = new UserService(fastify.db);
 
   // Decorate for use in handlers (encapsulated to this plugin)
-  fastify.decorate('userService', userService)
+  fastify.decorate("userService", userService);
 
   // Register routes
-  await fastify.register(userRoutes)
-}
+  await fastify.register(userRoutes);
+};
 
-export default usersPlugin // NOT wrapped in fp()—stays encapsulated
+export default usersPlugin; // NOT wrapped in fp()—stays encapsulated
 ```
 
 ---
@@ -330,19 +354,19 @@ export default usersPlugin // NOT wrapped in fp()—stays encapsulated
 For larger applications, use autoload to automatically register plugins:
 
 ```typescript
-import autoload from '@fastify/autoload'
-import { join } from 'path'
+import autoload from "@fastify/autoload";
+import { join } from "path";
 
 await app.register(autoload, {
-  dir: join(__dirname, 'plugins'),
+  dir: join(__dirname, "plugins"),
   // These become shared (fp-wrapped)
-})
+});
 
 await app.register(autoload, {
-  dir: join(__dirname, 'features'),
-  options: { prefix: '/api' },
+  dir: join(__dirname, "features"),
+  options: { prefix: "/api" },
   // These stay encapsulated
-})
+});
 ```
 
 ---
@@ -352,29 +376,29 @@ await app.register(autoload, {
 Plugins are highly testable because of encapsulation:
 
 ```typescript
-import Fastify from 'fastify'
-import { test } from 'node:test'
-import usersPlugin from '../features/users'
-import databasePlugin from '../plugins/database'
+import Fastify from "fastify";
+import { test } from "node:test";
+import usersPlugin from "../features/users";
+import databasePlugin from "../plugins/database";
 
-test('users plugin', async (t) => {
-  const app = Fastify()
+test("users plugin", async (t) => {
+  const app = Fastify();
 
   // Register only what this plugin needs
-  await app.register(databasePlugin)
-  await app.register(usersPlugin, { prefix: '/users' })
+  await app.register(databasePlugin);
+  await app.register(usersPlugin, { prefix: "/users" });
 
-  await t.test('GET /users/:id returns user', async () => {
+  await t.test("GET /users/:id returns user", async () => {
     const response = await app.inject({
-      method: 'GET',
-      url: '/users/123'
-    })
+      method: "GET",
+      url: "/users/123",
+    });
 
-    assert.strictEqual(response.statusCode, 200)
-  })
+    assert.strictEqual(response.statusCode, 200);
+  });
 
-  await app.close()
-})
+  await app.close();
+});
 ```
 
 ---
@@ -385,24 +409,24 @@ test('users plugin', async (t) => {
 
 ```typescript
 // WRONG: No encapsulation, everything is global
-app.decorate('userService', userService)
-app.decorate('orderService', orderService)
-app.get('/users', handler)
-app.get('/orders', handler)
+app.decorate("userService", userService);
+app.decorate("orderService", orderService);
+app.get("/users", handler);
+app.get("/orders", handler);
 
 // CORRECT: Use plugins for organization
-await app.register(usersPlugin, { prefix: '/users' })
-await app.register(ordersPlugin, { prefix: '/orders' })
+await app.register(usersPlugin, { prefix: "/users" });
+await app.register(ordersPlugin, { prefix: "/orders" });
 ```
 
 ### 2. Overusing fastify-plugin
 
 ```typescript
 // WRONG: Breaking encapsulation unnecessarily
-export default fp(usersPlugin) // Why expose internal decorators?
+export default fp(usersPlugin); // Why expose internal decorators?
 
 // CORRECT: Only use fp() for shared infrastructure
-export default usersPlugin
+export default usersPlugin;
 ```
 
 ### 3. Synchronous Plugin Pattern
@@ -410,24 +434,24 @@ export default usersPlugin
 ```typescript
 // WRONG: Old callback style
 const plugin = (fastify, opts, done) => {
-  fastify.get('/', handler)
-  done()
-}
+  fastify.get("/", handler);
+  done();
+};
 
 // CORRECT: Modern async style
 const plugin: FastifyPluginAsync = async (fastify, opts) => {
-  fastify.get('/', handler)
-}
+  fastify.get("/", handler);
+};
 ```
 
 ### 4. Not Declaring Decorator Types
 
 ```typescript
 // WRONG: Breaks V8 hidden class optimization
-fastify.decorateRequest('user')
+fastify.decorateRequest("user");
 
 // CORRECT: Provide initial shape
-fastify.decorateRequest('user', null)
+fastify.decorateRequest("user", null);
 ```
 
 ### 5. Circular Dependencies Between Plugins
@@ -443,16 +467,16 @@ fastify.decorateRequest('user', null)
 
 ## Quick Reference
 
-| Concept | Purpose |
-|---------|---------|
-| `fastify.register()` | Load a plugin, creating a new encapsulated context |
-| `fastify-plugin` (fp) | Break encapsulation, expose decorators to parent |
-| `fastify.decorate()` | Add property to Fastify instance |
-| `fastify.decorateRequest()` | Add property to every request |
-| `fastify.decorateReply()` | Add property to every reply |
-| `prefix` option | Namespace all routes in a plugin |
-| `dependencies` | Declare plugin load order requirements |
-| `@fastify/autoload` | Automatically load plugins from directories |
+| Concept                     | Purpose                                            |
+| --------------------------- | -------------------------------------------------- |
+| `fastify.register()`        | Load a plugin, creating a new encapsulated context |
+| `fastify-plugin` (fp)       | Break encapsulation, expose decorators to parent   |
+| `fastify.decorate()`        | Add property to Fastify instance                   |
+| `fastify.decorateRequest()` | Add property to every request                      |
+| `fastify.decorateReply()`   | Add property to every reply                        |
+| `prefix` option             | Namespace all routes in a plugin                   |
+| `dependencies`              | Declare plugin load order requirements             |
+| `@fastify/autoload`         | Automatically load plugins from directories        |
 
 ---
 
