@@ -1,0 +1,24 @@
+{
+  "name": "timmywheels",
+  "description": "Tim Wheeler's agent skills.",
+  "owner": {
+    "name": "Tim Wheeler"
+  },
+  "plugins": [
+    {
+      "name": "timmywheels",
+      "description": "Tim Wheeler's agent skills.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./be-more-ambitious",
+        "./data-modeling",
+        "./fastify",
+        "./plg",
+        "./socrates",
+        "./steve-jobs",
+        "./stripe-api-design"
+      ]
+    }
+  ]
+}
